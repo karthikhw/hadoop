@@ -453,11 +453,20 @@ public class RMAppImpl implements RMApp, Recoverable {
       this.applicationPriority = Priority.newInstance(0);
     }
 
-    int globalMaxAppAttempts = conf.getInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
+    int globalMaxAppAttempts = conf.getInt(
+        YarnConfiguration.GLOBAL_RM_AM_MAX_ATTEMPTS,
+        conf.getInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
+            YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS));
+    int rmMaxAppAttempts = conf.getInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
         YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
     int individualMaxAppAttempts = submissionContext.getMaxAppAttempts();
-    if (individualMaxAppAttempts <= 0 ||
-        individualMaxAppAttempts > globalMaxAppAttempts) {
+    if (individualMaxAppAttempts <= 0) {
+      this.maxAppAttempts = rmMaxAppAttempts;
+      LOG.warn("The specific max attempts: " + individualMaxAppAttempts
+          + " for application: " + applicationId.getId()
+          + " is invalid, because it is less than or equal to zero."
+          + " Use the rm max attempts instead.");
+    } else if (individualMaxAppAttempts > globalMaxAppAttempts) {
       this.maxAppAttempts = globalMaxAppAttempts;
       LOG.warn("The specific max attempts: " + individualMaxAppAttempts
           + " for application: " + applicationId.getId()
@@ -1211,8 +1220,9 @@ public class RMAppImpl implements RMApp, Recoverable {
               + " failed due to " + failedEvent.getDiagnosticMsg()
               + ". Failing the application.";
     } else if (this.isNumAttemptsBeyondThreshold) {
-      int globalLimit = conf.getInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
-          YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
+      int globalLimit = conf.getInt(YarnConfiguration.GLOBAL_RM_AM_MAX_ATTEMPTS,
+          conf.getInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
+              YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS));
       msg = String.format(
         "Application %s failed %d times%s%s due to %s. Failing the application.",
           getApplicationId(),
@@ -1687,6 +1697,7 @@ public class RMAppImpl implements RMApp, Recoverable {
     int numNonAMContainerPreempted = 0;
     Map<String, Long> resourceSecondsMap = new HashMap<>();
     Map<String, Long> preemptedSecondsMap = new HashMap<>();
+    int totalAllocatedContainers = 0;
     this.readLock.lock();
     try {
       for (RMAppAttempt attempt : attempts.values()) {
@@ -1716,6 +1727,8 @@ public class RMAppImpl implements RMApp, Recoverable {
             value += entry.getValue();
             preemptedSecondsMap.put(entry.getKey(), value);
           }
+          totalAllocatedContainers +=
+              attemptMetrics.getTotalAllocatedContainers();
         }
       }
     } finally {
@@ -1723,7 +1736,8 @@ public class RMAppImpl implements RMApp, Recoverable {
     }
 
     return new RMAppMetrics(resourcePreempted, numNonAMContainerPreempted,
-        numAMContainerPreempted, resourceSecondsMap, preemptedSecondsMap);
+        numAMContainerPreempted, resourceSecondsMap, preemptedSecondsMap,
+        totalAllocatedContainers);
   }
 
   @Private

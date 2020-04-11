@@ -980,17 +980,20 @@ public class TestAppManager extends AppManagerTestBase{
   @Test (timeout = 30000)
   public void testRMAppSubmitMaxAppAttempts() throws Exception {
     int[] globalMaxAppAttempts = new int[] { 10, 1 };
+    int[] rmAmMaxAttempts = new int[] { 8, 1 };
     int[][] individualMaxAppAttempts = new int[][]{
         new int[]{ 9, 10, 11, 0 },
         new int[]{ 1, 10, 0, -1 }};
     int[][] expectedNums = new int[][]{
-        new int[]{ 9, 10, 10, 10 },
+        new int[]{ 9, 10, 10, 8 },
         new int[]{ 1, 1, 1, 1 }};
     for (int i = 0; i < globalMaxAppAttempts.length; ++i) {
       for (int j = 0; j < individualMaxAppAttempts.length; ++j) {
         ResourceScheduler scheduler = mockResourceScheduler();
         Configuration conf = new Configuration();
-        conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, globalMaxAppAttempts[i]);
+        conf.setInt(YarnConfiguration.GLOBAL_RM_AM_MAX_ATTEMPTS,
+            globalMaxAppAttempts[i]);
+        conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, rmAmMaxAttempts[i]);
         ApplicationMasterService masterService =
             new ApplicationMasterService(rmContext, scheduler);
         TestRMAppManager appMonitor = new TestRMAppManager(rmContext,
@@ -1086,7 +1089,7 @@ public class TestAppManager extends AppManagerTestBase{
     resourceSecondsMap.put(ResourceInformation.VCORES.getName(), 64L);
     RMAppMetrics metrics =
         new RMAppMetrics(Resource.newInstance(1234, 56),
-            10, 1, resourceSecondsMap, new HashMap<>());
+            10, 1, resourceSecondsMap, new HashMap<>(), 1234);
     when(app.getRMAppMetrics()).thenReturn(metrics);
     when(app.getDiagnostics()).thenReturn(new StringBuilder(
         "Multiline\n\n\r\rDiagnostics=Diagn,ostic"));
@@ -1114,6 +1117,7 @@ public class TestAppManager extends AppManagerTestBase{
     assertTrue(msg.contains("applicationNodeLabel=test"));
     assertTrue(msg.contains("diagnostics=Multiline" + escaped
         + "Diagnostics\\=Diagn\\,ostic"));
+    assertTrue(msg.contains("totalAllocatedContainers=1234"));
   }
 
   @Test

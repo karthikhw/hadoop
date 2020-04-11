@@ -50,6 +50,7 @@ public class FSConfigToCSConfigArgumentHandler {
   private FSConfigToCSConfigRuleHandler ruleHandler;
   private FSConfigToCSConfigConverterParams converterParams;
   private ConversionOptions conversionOptions;
+  private ConvertedConfigValidator validator;
 
   private Supplier<FSConfigToCSConfigConverter>
       converterFunc = this::getConverter;
@@ -57,11 +58,14 @@ public class FSConfigToCSConfigArgumentHandler {
   public FSConfigToCSConfigArgumentHandler() {
     this.conversionOptions = new ConversionOptions(new DryRunResultHolder(),
         false);
+    this.validator = new ConvertedConfigValidator();
   }
 
   @VisibleForTesting
-  FSConfigToCSConfigArgumentHandler(ConversionOptions conversionOptions) {
+  FSConfigToCSConfigArgumentHandler(ConversionOptions conversionOptions,
+      ConvertedConfigValidator validator) {
     this.conversionOptions = conversionOptions;
+    this.validator = validator;
   }
 
   /**
@@ -98,6 +102,13 @@ public class FSConfigToCSConfigArgumentHandler {
         "Disables checking whether a placement rule is terminal to maintain" +
         " backward compatibility with configs that were made before YARN-8967.",
         false),
+    CONVERT_PLACEMENT_RULES("convert placement rules",
+        "m", "convert-placement-rules",
+        "Convert Fair Scheduler placement rules to Capacity" +
+        " Scheduler mapping rules", false),
+    SKIP_VERIFICATION("skip verification", "s",
+        "skip-verification",
+        "Skips the verification of the converted configuration", false),
     HELP("help", "h", "help", "Displays the list of options", false);
 
     private final String name;
@@ -143,6 +154,14 @@ public class FSConfigToCSConfigArgumentHandler {
           prepareAndGetConverter(cliParser);
 
       converter.convert(converterParams);
+
+      String outputDir = converterParams.getOutputDirectory();
+      boolean skipVerification =
+          cliParser.hasOption(CliOption.SKIP_VERIFICATION.shortSwitch);
+      if (outputDir != null && !skipVerification) {
+        validator.validateConvertedConfig(
+            converterParams.getOutputDirectory());
+      }
     } catch (ParseException e) {
       String msg = "Options parsing failed: " + e.getMessage();
       logAndStdErr(e, msg);
@@ -162,6 +181,11 @@ public class FSConfigToCSConfigArgumentHandler {
       String msg = "Fatal error during FS config conversion: " + e.getMessage();
       handleException(e, msg);
       retVal = -1;
+    } catch (VerificationException e) {
+      Throwable cause = e.getCause();
+      String msg = "Verification failed: " + e.getCause().getMessage();
+      conversionOptions.handleVerificationFailure(cause, msg);
+      retVal = -1;
     }
 
     conversionOptions.handleParsingFinished();
@@ -173,8 +197,8 @@ public class FSConfigToCSConfigArgumentHandler {
     conversionOptions.handleGenericException(e, msg);
   }
 
-  static void logAndStdErr(Exception e, String msg) {
-    LOG.debug("Stack trace", e);
+  static void logAndStdErr(Throwable t, String msg) {
+    LOG.debug("Stack trace", t);
     LOG.error(msg);
     System.err.println(msg);
   }
@@ -216,6 +240,8 @@ public class FSConfigToCSConfigArgumentHandler {
         cliParser.getOptionValue(CliOption.CONVERSION_RULES.shortSwitch);
     String outputDir =
         cliParser.getOptionValue(CliOption.OUTPUT_DIR.shortSwitch);
+    boolean convertPlacementRules =
+        cliParser.hasOption(CliOption.CONVERT_PLACEMENT_RULES.shortSwitch);
 
     checkFile(CliOption.YARN_SITE, yarnSiteXmlFile);
     checkFile(CliOption.FAIR_SCHEDULER, fairSchedulerXmlFile);
@@ -231,6 +257,7 @@ public class FSConfigToCSConfigArgumentHandler {
             cliParser.getOptionValue(CliOption.CLUSTER_RESOURCE.shortSwitch))
         .withConsole(cliParser.hasOption(CliOption.CONSOLE_MODE.shortSwitch))
         .withOutputDirectory(outputDir)
+        .withConvertPlacementRules(convertPlacementRules)
         .build();
   }
 

@@ -502,12 +502,19 @@ public class YarnConfiguration extends Configuration {
   public static final int DEFAULT_RM_ADMIN_CLIENT_THREAD_COUNT = 1;
   
   /**
-   * The maximum number of application attempts.
-   * It's a global setting for all application masters.
+   * The maximum number of application attempts for
+   * an application, if unset by user.
    */
   public static final String RM_AM_MAX_ATTEMPTS =
     RM_PREFIX + "am.max-attempts";
   public static final int DEFAULT_RM_AM_MAX_ATTEMPTS = 2;
+
+  /**
+   * The maximum number of application attempts.
+   * It's a global setting for all application masters.
+   */
+  public static final String GLOBAL_RM_AM_MAX_ATTEMPTS =
+      RM_PREFIX + "am.global.max-attempts";
   
   /** The keytab for the resource manager.*/
   public static final String RM_KEYTAB = 
@@ -958,6 +965,10 @@ public class YarnConfiguration extends Configuration {
       CLIENT_FAILOVER_PREFIX + "proxy-provider";
   public static final String DEFAULT_CLIENT_FAILOVER_PROXY_PROVIDER =
       "org.apache.hadoop.yarn.client.ConfiguredRMFailoverProxyProvider";
+  public static final String CLIENT_FAILOVER_NO_HA_PROXY_PROVIDER =
+      CLIENT_FAILOVER_PREFIX + "no-ha-proxy-provider";
+  public static final String DEFAULT_CLIENT_FAILOVER_NO_HA_PROXY_PROVIDER =
+      "org.apache.hadoop.yarn.client.DefaultNoHARMFailoverProxyProvider";
 
   public static final String CLIENT_FAILOVER_MAX_ATTEMPTS =
       CLIENT_FAILOVER_PREFIX + "max-attempts";
@@ -1241,7 +1252,12 @@ public class YarnConfiguration extends Configuration {
   public static final String NM_DELETE_THREAD_COUNT = 
     NM_PREFIX +  "delete.thread-count";
   public static final int DEFAULT_NM_DELETE_THREAD_COUNT = 4;
-  
+
+  public static final String NM_CONTAINER_EXECUTOR_EXIT_FILE_TIMEOUT =
+      NM_PREFIX + "container-executor.exit-code-file.timeout-ms";
+  public static final int DEFAULT_NM_CONTAINER_EXECUTOR_EXIT_FILE_TIMEOUT =
+      2000;
+
   /** Keytab for NM.*/
   public static final String NM_KEYTAB = NM_PREFIX + "keytab";
   

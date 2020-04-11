@@ -17,6 +17,7 @@
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.converter;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration.PREFIX;
+import static org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.converter.FSQueueConverter.QUEUE_MAX_AM_SHARE_DISABLED;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -91,10 +92,12 @@ public class FSConfigToCSConfigConverter {
   private Configuration convertedYarnSiteConfig;
   private Configuration capacitySchedulerConfig;
   private FSConfigToCSConfigRuleHandler ruleHandler;
+  private QueuePlacementConverter placementConverter;
 
   private OutputStream yarnSiteOutputStream;
   private OutputStream capacitySchedulerOutputStream;
   private boolean consoleMode = false;
+  private boolean convertPlacementRules = false;
 
   public FSConfigToCSConfigConverter(FSConfigToCSConfigRuleHandler
       ruleHandler, ConversionOptions conversionOptions) {
@@ -102,6 +105,7 @@ public class FSConfigToCSConfigConverter {
     this.conversionOptions = conversionOptions;
     this.yarnSiteOutputStream = System.out;
     this.capacitySchedulerOutputStream = System.out;
+    this.placementConverter = new QueuePlacementConverter();
   }
 
   public void convert(FSConfigToCSConfigConverterParams params)
@@ -113,6 +117,8 @@ public class FSConfigToCSConfigConverter {
     handleFairSchedulerConfig(params, inputYarnSiteConfig);
 
     this.clusterResource = getClusterResource(params);
+    this.convertPlacementRules = params.isConvertPlacementRules();
+
     convert(inputYarnSiteConfig);
   }
 
@@ -259,16 +265,6 @@ public class FSConfigToCSConfigConverter {
     convertedYarnSiteConfig.writeXml(yarnSiteOutputStream);
   }
 
-  @VisibleForTesting
-  void setYarnSiteOutputStream(OutputStream out) {
-    this.yarnSiteOutputStream = out;
-  }
-
-  @VisibleForTesting
-  void setCapacitySchedulerConfigOutputStream(OutputStream out) {
-    this.capacitySchedulerOutputStream = out;
-  }
-
   private void convertYarnSiteXml(Configuration inputYarnSiteConfig,
       boolean havePlacementPolicies) {
     FSYarnSiteConverter siteConverter =
@@ -309,16 +305,19 @@ public class FSConfigToCSConfigConverter {
     queueConverter.convertQueueHierarchy(rootQueue);
     emitACLs(fs);
 
-    PlacementManager placementManager =
-        fs.getRMContext().getQueuePlacementManager();
+    if (convertPlacementRules) {
+      LOG.info("Converting placement rules");
+      PlacementManager placementManager =
+          fs.getRMContext().getQueuePlacementManager();
 
-    if (placementManager.getPlacementRules().size() > 0) {
-      QueuePlacementConverter placementConverter =
-          new QueuePlacementConverter();
-      Map<String, String> properties =
-          placementConverter.convertPlacementPolicy(placementManager,
-              ruleHandler, userAsDefaultQueue);
-      properties.forEach((k, v) -> capacitySchedulerConfig.set(k, v));
+      if (placementManager.getPlacementRules().size() > 0) {
+        Map<String, String> properties =
+            placementConverter.convertPlacementPolicy(placementManager,
+                ruleHandler, userAsDefaultQueue);
+        properties.forEach((k, v) -> capacitySchedulerConfig.set(k, v));
+      }
+    } else {
+      LOG.info("Ignoring the conversion of placement rules");
     }
   }
 
@@ -331,10 +330,17 @@ public class FSConfigToCSConfigConverter {
   }
 
   private void emitDefaultMaxAMShare() {
-    capacitySchedulerConfig.set(
-        CapacitySchedulerConfiguration.
-          MAXIMUM_APPLICATION_MASTERS_RESOURCE_PERCENT,
-        String.valueOf(queueMaxAMShareDefault));
+    if (queueMaxAMShareDefault == QUEUE_MAX_AM_SHARE_DISABLED) {
+      capacitySchedulerConfig.setFloat(
+          CapacitySchedulerConfiguration.
+            MAXIMUM_APPLICATION_MASTERS_RESOURCE_PERCENT,
+            1.0f);
+    } else {
+      capacitySchedulerConfig.setFloat(
+          CapacitySchedulerConfiguration.
+            MAXIMUM_APPLICATION_MASTERS_RESOURCE_PERCENT,
+          queueMaxAMShareDefault);
+    }
   }
 
   private void emitACLs(FairScheduler fs) {
@@ -432,6 +438,20 @@ public class FSConfigToCSConfigConverter {
     return convertedYarnSiteConfig;
   }
 
+  @VisibleForTesting
+  Configuration getCapacitySchedulerConfig() {
+    return capacitySchedulerConfig;
+  }
+
+  @VisibleForTesting
+  void setConvertPlacementRules(boolean convertPlacementRules) {
+    this.convertPlacementRules = convertPlacementRules;
+  }
+
+  @VisibleForTesting
+  void setPlacementConverter(QueuePlacementConverter converter) {
+    this.placementConverter = converter;
+  }
   /*
    * Determines whether <queuePlacementPolicy> is present
    * in the allocation file or not.
