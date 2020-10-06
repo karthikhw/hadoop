@@ -257,6 +257,12 @@
   </property>
 
   <property>
+    <description>Enable tools section in all ui1 webapp.</description>
+    <name>yarn.webapp.ui1.tools.enable</name>
+    <value>true</value>
+  </property>
+
+  <property>
     <description>
       Explicitly provide WAR file path for ui2 if needed.
     </description>
@@ -802,6 +808,16 @@
     </description>
     <name>yarn.resourcemanager.delegation-token.max-conf-size-bytes</name>
     <value>12800</value>
+  </property>
+
+  <property>
+    <description>If true, ResourceManager will always try to cancel delegation
+      tokens after the application completes, even if the client sets
+      shouldCancelAtEnd false.  References to delegation tokens are tracked,
+      so they will not be canceled until all sub-tasks are done using them.
+    </description>
+    <name>yarn.resourcemanager.delegation-token.always-cancel</name>
+    <value>false</value>
   </property>
 
   <property>
@@ -1666,6 +1682,13 @@
     <description>Health check script time out period.</description>
     <name>yarn.nodemanager.health-checker.timeout-ms</name>
     <value>1200000</value>
+  </property>
+
+  <property>
+    <description>Whether or not to run the node health script
+    before the NM starts up.</description>
+    <name>yarn.nodemanager.health-checker.run-before-startup</name>
+    <value>false</value>
   </property>
 
   <property>
@@ -3324,6 +3347,51 @@
   </property>
 
   <property>
+    <description>
+    Used to specify custom web services for Resourcemanager. Value can be
+    classnames separated by comma.
+    Ex: org.apache.hadoop.yarn.server.resourcemanager.webapp.RMWebServices,
+    org.apache.hadoop.yarn.server.resourcemanager.webapp.DummyClass
+    </description>
+    <name>yarn.http.rmwebapp.external.classes</name>
+    <value></value>
+  </property>
+
+  <property>
+    <description>
+    Used to specify custom scheduler page
+    </description>
+    <name>yarn.http.rmwebapp.scheduler.page.class</name>
+    <value></value>
+  </property>
+
+  <property>
+    <description>
+    Used to specify custom DAO classes used by custom web services.
+    </description>
+    <name>yarn.http.rmwebapp.custom.dao.classes</name>
+    <value></value>
+  </property>
+
+  <property>
+    <description>
+    Used to specify custom DAO classes used by custom web services which requires
+    root unwrapping.
+    </description>
+    <name>yarn.http.rmwebapp.custom.unwrapped.dao.classes</name>
+    <value></value>
+  </property>
+
+  <property>
+    <description>
+    Used to specify custom WebServices class to bind with RMWebApp overriding
+    the default RMWebServices.
+    </description>
+    <name>yarn.webapp.custom.webservice.class</name>
+    <value></value>
+  </property>
+
+  <property>
     <description>The Node Label script to run. Script output Line starting with
      "NODE_PARTITION:" will be considered as Node Label Partition. In case of
      multiple lines have this pattern, then last one will be considered
@@ -4547,4 +4615,17 @@
     <value></value>
   </property>
 
+  <property>
+    <description>Max number of application tags set by user in ApplicationSubmissionContext
+      while submitting application</description>
+    <name>yarn.resourcemanager.application.max-tags</name>
+    <value>10</value>
+  </property>
+
+  <property>
+    <description>Max length of each application tag set by user in ApplicationSubmissionContext
+      while submitting application.</description>
+    <name>yarn.resourcemanager.application.max-tag.length</name>
+    <value>100</value>
+  </property>
 </configuration>

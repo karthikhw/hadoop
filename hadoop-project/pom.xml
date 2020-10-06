@@ -79,7 +79,7 @@
     <httpcore.version>4.4.10</httpcore.version>
 
     <!-- SLF4J/LOG4J version -->
-    <slf4j.version>1.7.25</slf4j.version>
+    <slf4j.version>1.7.30</slf4j.version>
     <log4j.version>1.2.17</log4j.version>
 
     <!-- com.google.re2j version -->
@@ -98,7 +98,7 @@
     <zookeeper.version>3.5.6</zookeeper.version>
     <curator.version>4.2.0</curator.version>
     <findbugs.version>3.0.5</findbugs.version>
-    <spotbugs.version>3.1.0-RC1</spotbugs.version>
+    <spotbugs.version>4.0.6</spotbugs.version>
     <dnsjava.version>2.1.7</dnsjava.version>
 
     <guava.version>27.0-jre</guava.version>
@@ -114,7 +114,7 @@
     <!-- Apache Commons dependencies -->
     <commons-beanutils.version>1.9.4</commons-beanutils.version>
     <commons-cli.version>1.2</commons-cli.version>
-    <commons-codec.version>1.11</commons-codec.version>
+    <commons-codec.version>1.14</commons-codec.version>
     <commons-collections.version>3.2.2</commons-collections.version>
     <commons-compress.version>1.19</commons-compress.version>
     <commons-csv.version>1.0</commons-csv.version>
@@ -140,7 +140,8 @@
     <htrace4.version>4.1.0-incubating</htrace4.version>
     <metrics.version>3.2.4</metrics.version>
     <netty3.version>3.10.6.Final</netty3.version>
-    <netty4.version>4.1.45.Final</netty4.version>
+    <netty4.version>4.1.50.Final</netty4.version>
+    <snappy-java.version>1.1.7.7</snappy-java.version>
 
     <!-- Maven protoc compiler -->
     <protobuf-maven-plugin.version>0.5.1</protobuf-maven-plugin.version>
@@ -152,6 +153,7 @@
 
     <!-- define the Java language version used by the compiler -->
     <javac.version>1.8</javac.version>
+    <javadoc.skip.jdk11>false</javadoc.skip.jdk11>
 
     <!-- The java version enforced by the maven enforcer -->
     <!-- more complex patterns can be used here, such as
@@ -206,6 +208,7 @@
     <powermock.version>1.5.6</powermock.version>
     <solr.version>7.7.0</solr.version>
     <openssl-wildfly.version>1.0.7.Final</openssl-wildfly.version>
+    <jsonschema2pojo.version>1.0.2</jsonschema2pojo.version>
   </properties>
 
   <dependencyManagement>
@@ -324,6 +327,12 @@
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-hdfs</artifactId>
+        <version>${hadoop.version}</version>
+        <type>test-jar</type>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-hdfs-rbf</artifactId>
         <version>${hadoop.version}</version>
         <type>test-jar</type>
       </dependency>
@@ -580,6 +589,17 @@
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-federation-balance</artifactId>
+        <version>${hadoop.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-federation-balance</artifactId>
+        <version>${hadoop.version}</version>
+        <type>test-jar</type>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-datajoin</artifactId>
         <version>${hadoop.version}</version>
       </dependency>
@@ -639,6 +659,12 @@
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-aliyun</artifactId>
+        <version>${hadoop.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-cos</artifactId>
         <version>${hadoop.version}</version>
       </dependency>
 
@@ -1142,6 +1168,11 @@
         <version>${jackson2.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.fasterxml.jackson.dataformat</groupId>
+        <artifactId>jackson-dataformat-yaml</artifactId>
+        <version>${jackson2.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
         <version>2.28.2</version>
@@ -1159,11 +1190,19 @@
       <dependency>
         <groupId>org.mock-server</groupId>
         <artifactId>mockserver-netty</artifactId>
-        <version>3.9.2</version>
+        <version>5.11.1</version>
         <exclusions>
           <exclusion>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.swagger.parser.v3</groupId>
+            <artifactId>swagger-parser-v2-converter</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-core</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1305,6 +1344,18 @@
             <groupId>jline</groupId>
             <artifactId>jline</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-native-epoll</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -1384,7 +1435,7 @@
       <dependency>
         <groupId>com.microsoft.azure</groupId>
         <artifactId>azure-storage</artifactId>
-        <version>7.0.0</version>
+        <version>7.0.1</version>
      </dependency>
 
       <!--Wildfly openssl dependency is introduced by HADOOP-15669-->
@@ -1420,6 +1471,12 @@
           </exclusion>
         </exclusions>
      </dependency>
+
+      <dependency>
+        <groupId>com.qcloud</groupId>
+        <artifactId>cos_api-bundle</artifactId>
+        <version>5.6.19</version>
+      </dependency>
 
      <dependency>
        <groupId>org.apache.curator</groupId>
@@ -1672,9 +1729,9 @@
         <version>1.0.13</version>
       </dependency>
       <dependency>
-        <groupId>javax.activation</groupId>
-        <artifactId>javax.activation-api</artifactId>
-        <version>1.2.0</version>
+        <groupId>jakarta.activation</groupId>
+        <artifactId>jakarta.activation-api</artifactId>
+        <version>1.2.1</version>
       </dependency>
       <dependency>
         <groupId>javax.annotation</groupId>
@@ -1685,6 +1742,54 @@
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna</artifactId>
         <version>${jna.version}</version>
+      </dependency>
+      <dependency>
+         <groupId>org.jsonschema2pojo</groupId>
+         <artifactId>jsonschema2pojo-core</artifactId>
+         <version>${jsonschema2pojo.version}</version>
+         <exclusions>
+           <exclusion>
+             <groupId>com.fasterxml.jackson.core</groupId>
+             <artifactId>*</artifactId>
+           </exclusion>
+           <exclusion>
+             <groupId>com.fasterxml.jackson.dataformat</groupId>
+             <artifactId>*</artifactId>
+           </exclusion>
+           <exclusion>
+             <groupId>org.codehaus.jackson</groupId>
+             <artifactId>*</artifactId>
+           </exclusion>
+           <exclusion>
+             <groupId>com.google.code.gson</groupId>
+             <artifactId>gson</artifactId>
+           </exclusion>
+           <exclusion>
+             <groupId>com.google.code.findbugs</groupId>
+             <artifactId>annotations</artifactId>
+           </exclusion>
+           <exclusion>
+             <groupId>org.scala-lang</groupId>
+             <artifactId>scala-library</artifactId>
+           </exclusion>
+           <exclusion>
+             <groupId>org.jsonschema2pojo</groupId>
+             <artifactId>jsonschema2pojo-scalagen</artifactId>
+           </exclusion>
+           <exclusion>
+             <groupId>com.google.code.javaparser</groupId>
+             <artifactId>javaparser</artifactId>
+           </exclusion>
+           <exclusion>
+             <groupId>javax.validation</groupId>
+             <artifactId>validation-api</artifactId>
+           </exclusion>
+         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy-java.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -2169,7 +2274,6 @@
         <!-- will use a native entropy provider.  This will not really -->
         <!-- attempt to open a file at this path. -->
         <java.security.egd>file:/dev/urandom</java.security.egd>
-        <bundle.snappy.in.bin>true</bundle.snappy.in.bin>
         <bundle.zstd.in.bin>true</bundle.zstd.in.bin>
         <bundle.openssl.in.bin>true</bundle.openssl.in.bin>
       </properties>
@@ -2181,7 +2285,6 @@
             <configuration>
               <environmentVariables>
                 <!-- Specify where to look for the native DLL on Windows -->
-                <PATH>${env.PATH};${hadoop.common.build.dir}/bin;${snappy.lib}</PATH>
                 <PATH>${env.PATH};${hadoop.common.build.dir}/bin;${zstd.lib}</PATH>
                 <PATH>${env.PATH};${hadoop.common.build.dir}/bin;${openssl.lib}</PATH>
                 <PATH>${env.PATH};${hadoop.common.build.dir}/bin;${isal.lib}</PATH>
@@ -2358,6 +2461,8 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
             <configuration>
+              <skip>${javadoc.skip.jdk11}</skip>
+              <detectJavaApiLink>false</detectJavaApiLink>
               <additionalOptions>
                 <!-- TODO: remove -html4 option to generate html5 docs when we stop supporting JDK8 -->
                 <additionalOption>-html4</additionalOption>

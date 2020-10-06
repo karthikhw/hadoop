@@ -24,6 +24,9 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_BLOCK_SIZE_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CHECKSUM_TYPE_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_ENCRYPT_DATA_TRANSFER_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_REPLICATION_KEY;
+import static org.apache.hadoop.hdfs.TestDistributedFileSystem.checkOpStatistics;
+import static org.apache.hadoop.hdfs.TestDistributedFileSystem.checkStatistics;
+import static org.apache.hadoop.hdfs.TestDistributedFileSystem.getOpStatistics;
 import static org.apache.hadoop.hdfs.client.HdfsClientConfigKeys.DFS_BYTES_PER_CHECKSUM_KEY;
 import static org.apache.hadoop.hdfs.client.HdfsClientConfigKeys.DFS_CLIENT_WRITE_PACKET_SIZE_KEY;
 import static org.junit.Assert.assertEquals;
@@ -57,6 +60,7 @@ import java.util.Random;
 import com.google.common.collect.ImmutableList;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.QuotaUsage;
+import org.apache.hadoop.hdfs.DFSOpsCountStatistics;
 import org.apache.hadoop.test.LambdaTestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1080,10 +1084,12 @@ public class TestWebHDFS {
     webHdfs.setQuotaByStorageType(path, StorageType.DISK, spaceQuota);
     webHdfs.setQuotaByStorageType(path, StorageType.ARCHIVE, spaceQuota);
     webHdfs.setQuotaByStorageType(path, StorageType.SSD, spaceQuota);
+    webHdfs.setQuotaByStorageType(path, StorageType.NVDIMM, spaceQuota);
     quotaUsage = dfs.getQuotaUsage(path);
     assertEquals(spaceQuota, quotaUsage.getTypeQuota(StorageType.DISK));
     assertEquals(spaceQuota, quotaUsage.getTypeQuota(StorageType.ARCHIVE));
     assertEquals(spaceQuota, quotaUsage.getTypeQuota(StorageType.SSD));
+    assertEquals(spaceQuota, quotaUsage.getTypeQuota(StorageType.NVDIMM));
 
     // Test invalid parameters
 
@@ -1099,6 +1105,8 @@ public class TestWebHDFS {
         () -> webHdfs.setQuotaByStorageType(path, StorageType.SSD, -100));
     LambdaTestUtils.intercept(IllegalArgumentException.class,
         () -> webHdfs.setQuotaByStorageType(path, StorageType.RAM_DISK, 100));
+    LambdaTestUtils.intercept(IllegalArgumentException.class,
+        () -> webHdfs.setQuotaByStorageType(path, StorageType.NVDIMM, -100));
   }
 
 
@@ -1566,6 +1574,34 @@ public class TestWebHDFS {
   }
 
   @Test
+  public void testGetSnapshotTrashRoot() throws Exception {
+    final Configuration conf = WebHdfsTestUtil.createConf();
+    conf.setBoolean("dfs.namenode.snapshot.trashroot.enabled", true);
+    final String currentUser =
+        UserGroupInformation.getCurrentUser().getShortUserName();
+    cluster = new MiniDFSCluster.Builder(conf).numDataNodes(0).build();
+    final WebHdfsFileSystem webFS = WebHdfsTestUtil.getWebHdfsFileSystem(conf,
+        WebHdfsConstants.WEBHDFS_SCHEME);
+    Path ssDir1 = new Path("/ssDir1");
+    assertTrue(webFS.mkdirs(ssDir1));
+
+    Path trashPath = webFS.getTrashRoot(ssDir1);
+    Path expectedPath = new Path(FileSystem.USER_HOME_PREFIX,
+        new Path(currentUser, FileSystem.TRASH_PREFIX));
+    assertEquals(expectedPath.toUri().getPath(), trashPath.toUri().getPath());
+    // Enable snapshot
+    webFS.allowSnapshot(ssDir1);
+    Path trashPathAfter = webFS.getTrashRoot(ssDir1);
+    Path expectedPathAfter = new Path(ssDir1,
+        new Path(FileSystem.TRASH_PREFIX, currentUser));
+    assertEquals(expectedPathAfter.toUri().getPath(),
+        trashPathAfter.toUri().getPath());
+    // Cleanup
+    webFS.disallowSnapshot(ssDir1);
+    webFS.delete(ssDir1, true);
+  }
+
+  @Test
   public void testGetEZTrashRoot() throws Exception {
     final Configuration conf = WebHdfsTestUtil.createConf();
     FileSystemTestHelper fsHelper = new FileSystemTestHelper();
@@ -2012,6 +2048,62 @@ public class TestWebHDFS {
         ecpolicyForECfile, ecPolicyName);
   }
 
+  @Test
+  public void testStatistics() throws Exception {
+    final Configuration conf = new HdfsConfiguration();
+    conf.set(DFSConfigKeys.DFS_STORAGE_POLICY_SATISFIER_MODE_KEY,
+        StoragePolicySatisfierMode.EXTERNAL.toString());
+    StoragePolicySatisfier sps = new StoragePolicySatisfier(conf);
+    try {
+      cluster = new MiniDFSCluster.Builder(conf).storageTypes(
+          new StorageType[][] {{StorageType.DISK, StorageType.ARCHIVE}})
+          .storagesPerDatanode(2).numDataNodes(1).build();
+      cluster.waitActive();
+      sps.init(new ExternalSPSContext(sps, DFSTestUtil
+          .getNameNodeConnector(conf, HdfsServerConstants.MOVER_ID_PATH, 1,
+              false)));
+      sps.start(StoragePolicySatisfierMode.EXTERNAL);
+      sps.start(StoragePolicySatisfierMode.EXTERNAL);
+      final WebHdfsFileSystem webHdfs = WebHdfsTestUtil
+          .getWebHdfsFileSystem(conf, WebHdfsConstants.WEBHDFS_SCHEME);
+      Path dir = new Path("/test");
+      webHdfs.mkdirs(dir);
+      int readOps = 0;
+      int writeOps = 0;
+      FileSystem.clearStatistics();
+
+      long opCount =
+          getOpStatistics(DFSOpsCountStatistics.OpType.GET_STORAGE_POLICY);
+      webHdfs.getStoragePolicy(dir);
+      checkStatistics(webHdfs, ++readOps, writeOps, 0);
+      checkOpStatistics(DFSOpsCountStatistics.OpType.GET_STORAGE_POLICY,
+          opCount + 1);
+
+      opCount =
+          getOpStatistics(DFSOpsCountStatistics.OpType.GET_STORAGE_POLICIES);
+      webHdfs.getAllStoragePolicies();
+      checkStatistics(webHdfs, ++readOps, writeOps, 0);
+      checkOpStatistics(DFSOpsCountStatistics.OpType.GET_STORAGE_POLICIES,
+          opCount + 1);
+
+      opCount =
+          getOpStatistics(DFSOpsCountStatistics.OpType.SATISFY_STORAGE_POLICY);
+      webHdfs.satisfyStoragePolicy(dir);
+      checkStatistics(webHdfs, readOps, ++writeOps, 0);
+      checkOpStatistics(DFSOpsCountStatistics.OpType.SATISFY_STORAGE_POLICY,
+          opCount + 1);
+
+      opCount = getOpStatistics(
+          DFSOpsCountStatistics.OpType.GET_SNAPSHOTTABLE_DIRECTORY_LIST);
+      webHdfs.getSnapshottableDirectoryList();
+      checkStatistics(webHdfs, ++readOps, writeOps, 0);
+      checkOpStatistics(
+          DFSOpsCountStatistics.OpType.GET_SNAPSHOTTABLE_DIRECTORY_LIST,
+          opCount + 1);
+    } finally {
+      cluster.shutdown();
+    }
+  }
   /**
    * Get FileStatus JSONObject from ListStatus response.
    */

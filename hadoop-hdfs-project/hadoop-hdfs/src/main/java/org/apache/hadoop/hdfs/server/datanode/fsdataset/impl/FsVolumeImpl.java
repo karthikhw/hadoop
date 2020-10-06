@@ -133,6 +133,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
   protected volatile long configuredCapacity;
   private final FileIoProvider fileIoProvider;
   private final DataNodeVolumeMetrics metrics;
+  private URI baseURI;
 
   /**
    * Per-volume worker pool that processes new blocks to cache.
@@ -182,6 +183,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
       File parent = currentDir.getParentFile();
       cacheExecutor = initializeCacheExecutor(parent);
       this.metrics = DataNodeVolumeMetrics.create(conf, parent.getPath());
+      this.baseURI = new File(currentDir.getParent()).toURI();
     } else {
       cacheExecutor = null;
       this.metrics = null;
@@ -191,7 +193,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
   }
 
   protected ThreadPoolExecutor initializeCacheExecutor(File parent) {
-    if (storageType.isTransient()) {
+    if (storageType.isRAM()) {
       return null;
     }
     if (dataset.datanode == null) {
@@ -506,7 +508,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
 
   @Override
   public URI getBaseURI() {
-    return new File(currentDir.getParent()).toURI();
+    return baseURI;
   }
 
   @Override
@@ -529,6 +531,11 @@ public class FsVolumeImpl implements FsVolumeSpi {
   @Override
   public boolean isTransientStorage() {
     return storageType.isTransient();
+  }
+
+  @Override
+  public boolean isRAMStorage() {
+    return storageType.isRAM();
   }
 
   @VisibleForTesting

@@ -38,6 +38,7 @@ import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.ha.ActiveStandbyElector;
 import org.apache.hadoop.http.HttpConfig;
 import org.apache.hadoop.net.NetUtils;
+import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
 import org.apache.hadoop.util.BasicDiskValidator;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -93,11 +94,6 @@ public class YarnConfiguration extends Configuration {
           YARN_SITE_CONFIGURATION_FILE,
           CORE_SITE_CONFIGURATION_FILE));
 
-  @Evolving
-  public static final int APPLICATION_MAX_TAGS = 10;
-
-  @Evolving
-  public static final int APPLICATION_MAX_TAG_LENGTH = 100;
 
   static {
     addDeprecatedKeys();
@@ -206,6 +202,18 @@ public class YarnConfiguration extends Configuration {
   public static final int DEFAULT_RM_PORT = 8032;
   public static final String DEFAULT_RM_ADDRESS =
     "0.0.0.0:" + DEFAULT_RM_PORT;
+
+  /**Max number of application tags.*/
+  public static final String RM_APPLICATION_MAX_TAGS = RM_PREFIX
+      + "application.max-tags";
+
+  public static final int DEFAULT_RM_APPLICATION_MAX_TAGS = 10;
+
+  /**Max length of each application tag.*/
+  public static final String RM_APPLICATION_MAX_TAG_LENGTH = RM_PREFIX
+      + "application.max-tag.length";
+
+  public static final int DEFAULT_RM_APPLICATION_MAX_TAG_LENGTH = 100;
 
   public static final String RM_APPLICATION_MASTER_SERVICE_PROCESSORS =
       RM_PREFIX + "application-master-service.processors";
@@ -354,6 +362,8 @@ public class YarnConfiguration extends Configuration {
       + "webapp.ui2.war-file-path";
   public static final String YARN_API_SERVICES_ENABLE = "yarn."
       + "webapp.api-service.enable";
+  public static final String YARN_WEBAPP_UI1_ENABLE_TOOLS = "yarn."
+      + "webapp.ui1.tools.enable";
 
   @Private
   public static final String DEFAULT_YARN_API_SYSTEM_SERVICES_CLASS =
@@ -736,6 +746,9 @@ public class YarnConfiguration extends Configuration {
       RM_PREFIX + "delegation-token.max-conf-size-bytes";
   public static final int DEFAULT_RM_DELEGATION_TOKEN_MAX_CONF_SIZE_BYTES =
       12800;
+  public static final String RM_DELEGATION_TOKEN_ALWAYS_CANCEL =
+      RM_PREFIX + "delegation-token.always-cancel";
+  public static final boolean DEFAULT_RM_DELEGATION_TOKEN_ALWAYS_CANCEL = false;
 
   public static final String RM_DT_RENEWER_THREAD_TIMEOUT =
       RM_PREFIX + "delegation-token-renewer.thread-timeout";
@@ -1074,6 +1087,7 @@ public class YarnConfiguration extends Configuration {
   
   /** Default queue name */
   public static final String DEFAULT_QUEUE_NAME = "default";
+  public static final String DEFAULT_QUEUE_FULL_NAME = "root.default";
 
   /**
    * Buckets (in minutes) for the number of apps running in each queue.
@@ -2006,6 +2020,13 @@ public class YarnConfiguration extends Configuration {
       NM_PREFIX + "health-checker.interval-ms";
   public static final long DEFAULT_NM_HEALTH_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
+  /** Whether or not to run the node health script before the NM
+   *  starts up.*/
+  public static final String NM_HEALTH_CHECK_RUN_BEFORE_STARTUP =
+      NM_PREFIX + "health-checker.run-before-startup";
+  public static final boolean DEFAULT_NM_HEALTH_CHECK_RUN_BEFORE_STARTUP =
+      false;
+
   /** Health check time out period for all scripts.*/
   public static final String NM_HEALTH_CHECK_TIMEOUT_MS =
       NM_PREFIX + "health-checker.timeout-ms";
@@ -2375,6 +2396,21 @@ public class YarnConfiguration extends Configuration {
   /** Host pid namespace for containers is disabled by default. */
   public static final boolean DEFAULT_NM_DOCKER_ALLOW_HOST_PID_NAMESPACE =
       false;
+
+  public static final String YARN_HTTP_WEBAPP_EXTERNAL_CLASSES =
+      "yarn.http.rmwebapp.external.classes";
+
+  public static final String YARN_HTTP_WEBAPP_SCHEDULER_PAGE =
+      "yarn.http.rmwebapp.scheduler.page.class";
+
+  public static final String YARN_HTTP_WEBAPP_CUSTOM_DAO_CLASSES =
+      "yarn.http.rmwebapp.custom.dao.classes";
+
+  public static final String YARN_HTTP_WEBAPP_CUSTOM_UNWRAPPED_DAO_CLASSES =
+      "yarn.http.rmwebapp.custom.unwrapped.dao.classes";
+
+  public static final String YARN_WEBAPP_CUSTOM_WEBSERVICE_CLASS =
+      "yarn.webapp.custom.webservice.class";
 
   /**
    * Whether or not users are allowed to request that Docker containers honor
@@ -3242,6 +3278,18 @@ public class YarnConfiguration extends Configuration {
       TIMELINE_SERVICE_CLIENT_PREFIX + "drain-entities.timeout.ms";
   public static final long DEFAULT_TIMELINE_V2_CLIENT_DRAIN_TIME_MILLIS
       = 2000L;
+
+  /**
+   * The configuration prefix of timeline HTTP authentication.
+   */
+  public static final String TIMELINE_HTTP_AUTH_PREFIX =
+          TIMELINE_SERVICE_PREFIX + "http-authentication.";
+
+  /**
+   * The authentication type for timeline HTTP authentication.
+   */
+  public static final String TIMELINE_HTTP_AUTH_TYPE =
+          TIMELINE_HTTP_AUTH_PREFIX + AuthenticationFilter.AUTH_TYPE;
 
   // mark app-history related configs @Private as application history is going
   // to be integrated into the timeline service

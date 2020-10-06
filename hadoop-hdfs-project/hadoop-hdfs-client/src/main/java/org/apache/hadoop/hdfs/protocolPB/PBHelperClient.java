@@ -114,6 +114,7 @@ import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport.DiffType;
 import org.apache.hadoop.hdfs.protocol.SnapshottableDirectoryStatus;
 import org.apache.hadoop.hdfs.protocol.SystemErasureCodingPolicies;
 import org.apache.hadoop.hdfs.protocol.ZoneReencryptionStatus;
+import org.apache.hadoop.hdfs.protocol.SnapshotStatus;
 import org.apache.hadoop.hdfs.protocol.proto.AclProtos.AclEntryProto;
 import org.apache.hadoop.hdfs.protocol.proto.AclProtos.AclEntryProto.AclEntryScopeProto;
 import org.apache.hadoop.hdfs.protocol.proto.AclProtos.AclEntryProto.AclEntryTypeProto;
@@ -184,6 +185,8 @@ import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.SnapshotDiffReportEntryP
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.SnapshotDiffReportProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.SnapshottableDirectoryListingProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.SnapshottableDirectoryStatusProto;
+import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.SnapshotListingProto;
+import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.SnapshotStatusProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.StorageReportProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.StorageTypeProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.StorageTypesProto;
@@ -472,6 +475,8 @@ public class PBHelperClient {
       return StorageTypeProto.RAM_DISK;
     case PROVIDED:
       return StorageTypeProto.PROVIDED;
+    case NVDIMM:
+      return StorageTypeProto.NVDIMM;
     default:
       throw new IllegalStateException(
           "BUG: StorageType not found, type=" + type);
@@ -490,6 +495,8 @@ public class PBHelperClient {
       return StorageType.RAM_DISK;
     case PROVIDED:
       return StorageType.PROVIDED;
+    case NVDIMM:
+      return StorageType.NVDIMM;
     default:
       throw new IllegalStateException(
           "BUG: StorageTypeProto not found, type=" + type);
@@ -558,6 +565,8 @@ public class PBHelperClient {
     switch (proto) {
     case AES_CTR_NOPADDING:
       return CipherSuite.AES_CTR_NOPADDING;
+    case SM4_CTR_NOPADDING:
+      return CipherSuite.SM4_CTR_NOPADDING;
     default:
       // Set to UNKNOWN and stash the unknown enum value
       CipherSuite suite = CipherSuite.UNKNOWN;
@@ -596,6 +605,8 @@ public class PBHelperClient {
       return HdfsProtos.CipherSuiteProto.UNKNOWN;
     case AES_CTR_NOPADDING:
       return HdfsProtos.CipherSuiteProto.AES_CTR_NOPADDING;
+    case SM4_CTR_NOPADDING:
+      return HdfsProtos.CipherSuiteProto.SM4_CTR_NOPADDING;
     default:
       return null;
     }
@@ -1669,6 +1680,49 @@ public class PBHelperClient {
         sdirStatusProto.getParentFullpath().toByteArray());
   }
 
+  public static SnapshotStatus[] convert(
+      HdfsProtos.SnapshotListingProto sdlp) {
+    if (sdlp == null) {
+      return null;
+    }
+    List<HdfsProtos.SnapshotStatusProto> list = sdlp
+        .getSnapshotListingList();
+    if (list.isEmpty()) {
+      return new SnapshotStatus[0];
+    } else {
+      SnapshotStatus[] result =
+          new SnapshotStatus[list.size()];
+      for (int i = 0; i < list.size(); i++) {
+        result[i] = convert(list.get(i));
+      }
+      return result;
+    }
+  }
+
+  public static SnapshotStatus convert(
+      HdfsProtos.SnapshotStatusProto sdirStatusProto) {
+    if (sdirStatusProto == null) {
+      return null;
+    }
+    final HdfsFileStatusProto status = sdirStatusProto.getDirStatus();
+    EnumSet<HdfsFileStatus.Flags> flags = status.hasFlags()
+        ? convertFlags(status.getFlags())
+        : convertFlags(status.getPermission());
+    return new SnapshotStatus(
+        status.getModificationTime(),
+        status.getAccessTime(),
+        convert(status.getPermission()),
+        flags,
+        status.getOwner(),
+        status.getGroup(),
+        status.getPath().toByteArray(),
+        status.getFileId(),
+        status.getChildrenNum(),
+        sdirStatusProto.getSnapshotID(),
+        sdirStatusProto.getIsDeleted(),
+        sdirStatusProto.getParentFullpath().toByteArray());
+  }
+
   // DataEncryptionKey
   public static DataEncryptionKey convert(DataEncryptionKeyProto bet) {
     String encryptionAlgorithm = bet.getEncryptionAlgorithm();
@@ -2078,7 +2132,8 @@ public class PBHelperClient {
         fs.getTrashInterval(),
         convert(fs.getChecksumType()),
         fs.hasKeyProviderUri() ? fs.getKeyProviderUri() : null,
-        (byte) fs.getPolicyId());
+        (byte) fs.getPolicyId(),
+        fs.getSnapshotTrashRootEnabled());
   }
 
   public static List<CryptoProtocolVersionProto> convert(
@@ -2252,7 +2307,8 @@ public class PBHelperClient {
         .setEncryptDataTransfer(fs.getEncryptDataTransfer())
         .setTrashInterval(fs.getTrashInterval())
         .setChecksumType(convert(fs.getChecksumType()))
-        .setPolicyId(fs.getDefaultStoragePolicyId());
+        .setPolicyId(fs.getDefaultStoragePolicyId())
+        .setSnapshotTrashRootEnabled(fs.getSnapshotTrashRootEnabled());
     if (fs.getKeyProviderUri() != null) {
       builder.setKeyProviderUri(fs.getKeyProviderUri());
     }
@@ -2363,6 +2419,24 @@ public class PBHelperClient {
             .setSnapshotNumber(snapshotNumber)
             .setSnapshotQuota(snapshotQuota)
             .setParentFullpath(parentFullPathBytes)
+            .setDirStatus(fs);
+    return builder.build();
+  }
+
+  public static HdfsProtos.SnapshotStatusProto convert(SnapshotStatus status) {
+    if (status == null) {
+      return null;
+    }
+    byte[] parentFullPath = status.getParentFullPath();
+    ByteString parentFullPathBytes = getByteString(
+        parentFullPath == null ? DFSUtilClient.EMPTY_BYTES : parentFullPath);
+    HdfsFileStatusProto fs = convert(status.getDirStatus());
+    HdfsProtos.SnapshotStatusProto.Builder builder =
+        HdfsProtos.SnapshotStatusProto
+            .newBuilder()
+            .setSnapshotID(status.getSnapshotID())
+            .setParentFullpath(parentFullPathBytes)
+            .setIsDeleted(status.isDeleted())
             .setDirStatus(fs);
     return builder.build();
   }
@@ -2647,6 +2721,21 @@ public class PBHelperClient {
     List<SnapshottableDirectoryStatusProto> protoList = Arrays.asList(protos);
     return SnapshottableDirectoryListingProto.newBuilder()
         .addAllSnapshottableDirListing(protoList).build();
+  }
+
+  public static HdfsProtos.SnapshotListingProto convert(
+      SnapshotStatus[] status) {
+    if (status == null) {
+      return null;
+    }
+    HdfsProtos.SnapshotStatusProto[] protos =
+        new HdfsProtos.SnapshotStatusProto[status.length];
+    for (int i = 0; i < status.length; i++) {
+      protos[i] = convert(status[i]);
+    }
+    List<SnapshotStatusProto> protoList = Arrays.asList(protos);
+    return SnapshotListingProto.newBuilder()
+        .addAllSnapshotListing(protoList).build();
   }
 
   public static SnapshotDiffReportEntryProto convert(DiffReportEntry entry) {

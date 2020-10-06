@@ -721,15 +721,11 @@ public class TestNodeStatusUpdater extends NodeManagerTestBase {
         } else if (heartBeatID == 2 || heartBeatID == 3) {
           List<ContainerStatus> statuses =
               request.getNodeStatus().getContainersStatuses();
-          if (heartBeatID == 2) {
-            // NM should send completed containers again, since the last
-            // heartbeat is lost.
-            Assert.assertEquals(4, statuses.size());
-          } else {
-            // NM should not send completed containers again, since the last
-            // heartbeat is successful.
-            Assert.assertEquals(2, statuses.size());
-          }
+          // NM should send completed containers on heartbeat 2,
+          // since heartbeat 1 was lost.  It will send them again on
+          // heartbeat 3, because it does not clear them if the previous
+          // heartbeat was lost in case the RM treated it as a duplicate.
+          Assert.assertEquals(4, statuses.size());
           Assert.assertEquals(4, context.getContainers().size());
 
           boolean container2Exist = false, container3Exist = false,
@@ -760,14 +756,8 @@ public class TestNodeStatusUpdater extends NodeManagerTestBase {
               container5Exist = true;
             }
           }
-          if (heartBeatID == 2) {
-            Assert.assertTrue(container2Exist && container3Exist
-                && container4Exist && container5Exist);
-          } else {
-            // NM do not send completed containers again
-            Assert.assertTrue(container2Exist && !container3Exist
-                && container4Exist && !container5Exist);
-          }
+          Assert.assertTrue(container2Exist && container3Exist
+              && container4Exist && container5Exist);
 
           if (heartBeatID == 3) {
             finishedContainersPulledByAM.add(containerStatus3.getContainerId());
@@ -931,9 +921,8 @@ public class TestNodeStatusUpdater extends NodeManagerTestBase {
   public void testRecentlyFinishedContainers() throws Exception {
     NodeManager nm = new NodeManager();
     YarnConfiguration conf = new YarnConfiguration();
-    conf.set(
-        NodeStatusUpdaterImpl.YARN_NODEMANAGER_DURATION_TO_TRACK_STOPPED_CONTAINERS,
-        "10000");                                                             
+    conf.setInt(NodeStatusUpdaterImpl.
+        YARN_NODEMANAGER_DURATION_TO_TRACK_STOPPED_CONTAINERS, 1);
     nm.init(conf);                                                            
     NodeStatusUpdaterImpl nodeStatusUpdater =                                 
         (NodeStatusUpdaterImpl) nm.getNodeStatusUpdater();                    
@@ -948,18 +937,17 @@ public class TestNodeStatusUpdater extends NodeManagerTestBase {
     nodeStatusUpdater.addCompletedContainer(cId);
     Assert.assertTrue(nodeStatusUpdater.isContainerRecentlyStopped(cId));     
 
+    // verify container remains even after expiration if app
+    // is still active
     nm.getNMContext().getContainers().remove(cId);
-    long time1 = System.currentTimeMillis();                                  
-    int waitInterval = 15;                                                    
-    while (waitInterval-- > 0                                                 
-        && nodeStatusUpdater.isContainerRecentlyStopped(cId)) {               
-      nodeStatusUpdater.removeVeryOldStoppedContainersFromCache();
-      Thread.sleep(1000);                                                     
-    }                                                                         
-    long time2 = System.currentTimeMillis();
-    // By this time the container will be removed from cache. need to verify.
+    Thread.sleep(10);
+    nodeStatusUpdater.removeVeryOldStoppedContainersFromCache();
+    Assert.assertTrue(nodeStatusUpdater.isContainerRecentlyStopped(cId));
+
+    // complete the application and verify container is removed
+    nm.getNMContext().getApplications().remove(appId);
+    nodeStatusUpdater.removeVeryOldStoppedContainersFromCache();
     Assert.assertFalse(nodeStatusUpdater.isContainerRecentlyStopped(cId));
-    Assert.assertTrue((time2 - time1) >= 10000 && (time2 - time1) <= 250000);
   }
 
   @Test(timeout = 90000)

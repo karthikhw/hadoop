@@ -607,6 +607,11 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
     }
 
     @Override
+    public boolean isRAMStorage() {
+      return false;
+    }
+
+    @Override
     public void reserveSpaceForReplica(long bytesToReserve) {
     }
 
@@ -1367,7 +1372,10 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
 
   @Override
   public void shutdown() {
-    if (mbeanName != null) MBeans.unregister(mbeanName);
+    if (mbeanName != null) {
+      MBeans.unregister(mbeanName);
+      mbeanName = null;
+    }
   }
 
   @Override
@@ -1507,7 +1515,7 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
   }
 
   @Override
-  public List<ReplicaInfo> getFinalizedBlocks(String bpid) {
+  public List<ReplicaInfo> getSortedFinalizedBlocks(String bpid) {
     throw new UnsupportedOperationException();
   }
 

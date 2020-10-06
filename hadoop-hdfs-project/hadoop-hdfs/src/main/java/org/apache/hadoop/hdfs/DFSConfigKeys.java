@@ -243,6 +243,10 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
       "dfs.namenode.read.considerLoad";
   public static final boolean DFS_NAMENODE_READ_CONSIDERLOAD_DEFAULT =
       false;
+  public static final String DFS_NAMENODE_READ_CONSIDERSTORAGETYPE_KEY =
+      "dfs.namenode.read.considerStorageType";
+  public static final boolean DFS_NAMENODE_READ_CONSIDERSTORAGETYPE_DEFAULT =
+      false;
   public static final String  DFS_NAMENODE_REDUNDANCY_CONSIDERLOAD_FACTOR =
       "dfs.namenode.redundancy.considerLoad.factor";
   public static final double
@@ -496,8 +500,14 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
 
   public static final String DFS_NAMENODE_SNAPSHOT_MAX_LIMIT =
       "dfs.namenode.snapshot.max.limit";
-
   public static final int DFS_NAMENODE_SNAPSHOT_MAX_LIMIT_DEFAULT = 65536;
+  public static final String
+      DFS_NAMENODE_SNAPSHOT_FILESYSTEM_LIMIT =
+      "dfs.namenode.snapshot.filesystem.limit";
+  // default value is same as snapshot quota set for a snapshottable directory
+  public static final int
+      DFS_NAMENODE_SNAPSHOT_FILESYSTEM_LIMIT_DEFAULT = 65536;
+
   public static final String DFS_NAMENODE_SNAPSHOT_SKIPLIST_SKIP_INTERVAL =
       "dfs.namenode.snapshot.skiplist.interval";
   public static final int DFS_NAMENODE_SNAPSHOT_SKIPLIST_SKIP_INTERVAL_DEFAULT =
@@ -602,6 +612,10 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final String DFS_DATANODE_LOCK_FAIR_KEY =
       "dfs.datanode.lock.fair";
   public static final boolean DFS_DATANODE_LOCK_FAIR_DEFAULT = true;
+  public static final String DFS_DATANODE_LOCK_READ_WRITE_ENABLED_KEY =
+      "dfs.datanode.lock.read.write.enabled";
+  public static final Boolean DFS_DATANODE_LOCK_READ_WRITE_ENABLED_DEFAULT =
+      true;
   public static final String  DFS_DATANODE_LOCK_REPORTING_THRESHOLD_MS_KEY =
       "dfs.datanode.lock-reporting-threshold-ms";
   public static final long
@@ -671,7 +685,7 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
       600;
   /**
    * The maximum number of getBlocks RPCs data movement utilities can make to
-   * a NameNode per second. Values <= 0 disable throttling. This affects
+   * a NameNode per second. Values &lt;= 0 disable throttling. This affects
    * anything that uses a NameNodeConnector, i.e., the Balancer, Mover,
    * and StoragePolicySatisfier.
    */
@@ -750,6 +764,11 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
       "dfs.storage.policy.satisfier.retry.max.attempts";
   public static final int DFS_STORAGE_POLICY_SATISFIER_MAX_RETRY_ATTEMPTS_DEFAULT =
       3;
+  public static final String DFS_STORAGE_DEFAULT_POLICY =
+      "dfs.storage.default.policy";
+  public static final HdfsConstants.StoragePolicy
+      DFS_STORAGE_DEFAULT_POLICY_DEFAULT = HdfsConstants.StoragePolicy.HOT;
+
   public static final String DFS_SPS_MAX_OUTSTANDING_PATHS_KEY =
       "dfs.storage.policy.satisfier.max.outstanding.paths";
   public static final int DFS_SPS_MAX_OUTSTANDING_PATHS_DEFAULT = 10000;
@@ -842,6 +861,10 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final int     DFS_DATANODE_SCAN_PERIOD_HOURS_DEFAULT = 21 * 24;  // 3 weeks.
   public static final String  DFS_BLOCK_SCANNER_VOLUME_BYTES_PER_SECOND = "dfs.block.scanner.volume.bytes.per.second";
   public static final long    DFS_BLOCK_SCANNER_VOLUME_BYTES_PER_SECOND_DEFAULT = 1048576L;
+  public static final String  DFS_BLOCK_SCANNER_SKIP_RECENT_ACCESSED =
+      "dfs.block.scanner.skip.recent.accessed";
+  public static final boolean DFS_BLOCK_SCANNER_SKIP_RECENT_ACCESSED_DEFAULT =
+      false;
   public static final String  DFS_DATANODE_TRANSFERTO_ALLOWED_KEY = "dfs.datanode.transferTo.allowed";
   public static final boolean DFS_DATANODE_TRANSFERTO_ALLOWED_DEFAULT = true;
   public static final String  DFS_HEARTBEAT_INTERVAL_KEY = "dfs.heartbeat.interval";
@@ -1087,6 +1110,13 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final float   DFS_NAMENODE_AVAILABLE_SPACE_BLOCK_PLACEMENT_POLICY_BALANCED_SPACE_PREFERENCE_FRACTION_DEFAULT =
       0.6f;
   public static final String
+      DFS_NAMENODE_AVAILABLE_SPACE_RACK_FAULT_TOLERANT_BLOCK_PLACEMENT_POLICY_BALANCED_SPACE_PREFERENCE_FRACTION_KEY =
+      "dfs.namenode.available-space-rack-fault-tolerant-block-placement-policy"
+          + ".balanced-space-preference-fraction";
+  public static final float
+      DFS_NAMENODE_AVAILABLE_SPACE_BLOCK_RACK_FAULT_TOLERANT_PLACEMENT_POLICY_BALANCED_SPACE_PREFERENCE_FRACTION_DEFAULT =
+      0.6f;
+  public static final String
       DFS_NAMENODE_AVAILABLE_SPACE_BLOCK_PLACEMENT_POLICY_BALANCE_LOCAL_NODE_KEY =
       "dfs.namenode.available-space-block-placement-policy.balance-local-node";
   public static final boolean
@@ -1160,6 +1190,9 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
       "dfs.ha.nn.not-become-active-in-safemode";
   public static final boolean DFS_HA_NN_NOT_BECOME_ACTIVE_IN_SAFEMODE_DEFAULT =
       false;
+  public static final String DFS_HA_ALLOW_STALE_READ_KEY =
+      "dfs.ha.allow.stale.reads";
+  public static final boolean DFS_HA_ALLOW_STALE_READ_DEFAULT = false;
 
   // Security-related configs
   public static final String DFS_ENCRYPT_DATA_TRANSFER_KEY = "dfs.encrypt.data.transfer";
@@ -1459,6 +1492,16 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final String DFS_NAMENODE_STATE_CONTEXT_ENABLED_KEY =
       "dfs.namenode.state.context.enabled";
   public static final boolean DFS_NAMENODE_STATE_CONTEXT_ENABLED_DEFAULT = false;
+
+  /**
+   * whether to protect the subdirectories of directories which
+   * set on fs.protected.directories.
+   */
+  public static final String DFS_PROTECTED_SUBDIRECTORIES_ENABLE =
+      "dfs.protected.subdirectories.enable";
+  // Default value for DFS_PROTECTED_SUBDIRECTORIES_ENABLE.
+  public static final boolean DFS_PROTECTED_SUBDIRECTORIES_ENABLE_DEFAULT =
+      false;
 
   // dfs.client.retry confs are moved to HdfsClientConfigKeys.Retry
   @Deprecated

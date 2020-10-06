@@ -73,6 +73,7 @@ import org.apache.hadoop.hdfs.protocol.RollingUpgradeInfo;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReportListing;
 import org.apache.hadoop.hdfs.protocol.SnapshottableDirectoryStatus;
+import org.apache.hadoop.hdfs.protocol.SnapshotStatus;
 import org.apache.hadoop.hdfs.protocol.UnresolvedPathException;
 import org.apache.hadoop.hdfs.protocol.ZoneReencryptionStatus;
 import org.apache.hadoop.hdfs.security.token.block.DataEncryptionKey;
@@ -287,7 +288,7 @@ public class RouterClientProtocol implements ClientProtocol {
         rpcServer.getLocationsForPath(src, true);
     RemoteLocation createLocation = null;
     try {
-      createLocation = rpcServer.getCreateLocation(src);
+      createLocation = rpcServer.getCreateLocation(src, locations);
       return rpcClient.invokeSingle(createLocation, method,
           HdfsFileStatus.class);
     } catch (IOException ioe) {
@@ -1315,6 +1316,12 @@ public class RouterClientProtocol implements ClientProtocol {
   }
 
   @Override
+  public SnapshotStatus[] getSnapshotListing(String snapshotRoot)
+      throws IOException {
+    return snapshotProto.getSnapshotListing(snapshotRoot);
+  }
+
+  @Override
   public SnapshotDiffReport getSnapshotDiffReport(String snapshotRoot,
       String earlierSnapshotName, String laterSnapshotName) throws IOException {
     return snapshotProto.getSnapshotDiffReport(
@@ -1856,6 +1863,8 @@ public class RouterClientProtocol implements ClientProtocol {
 
   /**
    * Aggregate content summaries for each subcluster.
+   * If the mount point has multiple destinations
+   * add the quota set value only once.
    *
    * @param summaries Collection of individual summaries.
    * @return Aggregated content summary.
@@ -1878,9 +1887,9 @@ public class RouterClientProtocol implements ClientProtocol {
       length += summary.getLength();
       fileCount += summary.getFileCount();
       directoryCount += summary.getDirectoryCount();
-      quota += summary.getQuota();
+      quota = summary.getQuota();
       spaceConsumed += summary.getSpaceConsumed();
-      spaceQuota += summary.getSpaceQuota();
+      spaceQuota = summary.getSpaceQuota();
       // We return from the first response as we assume that the EC policy
       // of each sub-cluster is same.
       if (ecPolicy.isEmpty()) {
@@ -1974,7 +1983,8 @@ public class RouterClientProtocol implements ClientProtocol {
    * @param date Map with the dates.
    * @return New HDFS file status representing a mount point.
    */
-  private HdfsFileStatus getMountPointStatus(
+  @VisibleForTesting
+  HdfsFileStatus getMountPointStatus(
       String name, int childrenNum, long date) {
     long modTime = date;
     long accessTime = date;
@@ -2025,6 +2035,8 @@ public class RouterClientProtocol implements ClientProtocol {
       }
     }
     long inodeId = 0;
+    Path path = new Path(name);
+    String nameStr = path.getName();
     return new HdfsFileStatus.Builder()
         .isdir(true)
         .mtime(modTime)
@@ -2033,7 +2045,7 @@ public class RouterClientProtocol implements ClientProtocol {
         .owner(owner)
         .group(group)
         .symlink(new byte[0])
-        .path(DFSUtil.string2Bytes(name))
+        .path(DFSUtil.string2Bytes(nameStr))
         .fileId(inodeId)
         .children(childrenNum)
         .flags(flags)
