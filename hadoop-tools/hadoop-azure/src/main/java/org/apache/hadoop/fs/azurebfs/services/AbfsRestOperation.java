@@ -24,7 +24,7 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.List;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -254,11 +254,18 @@ public class AbfsRestOperation {
         incrementCounter(AbfsStatistic.BYTES_RECEIVED,
             httpOperation.getBytesReceived());
       }
-    } catch (IOException ex) {
-      if (ex instanceof UnknownHostException) {
-        LOG.warn(String.format("Unknown host name: %s. Retrying to resolve the host name...", httpOperation.getUrl().getHost()));
+    } catch (UnknownHostException ex) {
+      String hostname = null;
+      if (httpOperation != null) {
+        hostname = httpOperation.getHost();
       }
-
+      LOG.warn("Unknown host name: %s. Retrying to resolve the host name...",
+          hostname);
+      if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
+        throw new InvalidAbfsRestOperationException(ex);
+      }
+      return false;
+    } catch (IOException ex) {
       if (LOG.isDebugEnabled()) {
         if (httpOperation != null) {
           LOG.debug("HttpRequestFailure: " + httpOperation.toString(), ex);

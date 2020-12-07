@@ -21,7 +21,7 @@ package org.apache.hadoop.tools;
 import java.io.IOException;
 import java.util.Random;
 
-import com.google.common.base.Preconditions;
+import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -44,7 +44,7 @@ import org.apache.hadoop.util.ShutdownHookManager;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 
 /**
  * DistCp is the main driver-class for DistCpV2.
@@ -445,9 +445,9 @@ public class DistCp extends Configured implements Tool {
     int exitCode;
     try {
       DistCp distCp = new DistCp();
-      Cleanup CLEANUP = new Cleanup(distCp);
+      Cleanup cleanup = new Cleanup(distCp);
 
-      ShutdownHookManager.get().addShutdownHook(CLEANUP,
+      ShutdownHookManager.get().addShutdownHook(cleanup,
         SHUTDOWN_HOOK_PRIORITY);
       exitCode = ToolRunner.run(getDefaultConf(), distCp, argv);
     }
